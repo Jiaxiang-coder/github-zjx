@@ -50,13 +50,11 @@ BEGIN_MESSAGE_MAP(CPublishAide_1View, CHtmlView)
 	ON_COMMAND(ID_FILE_PRINT, &CHtmlView::OnFilePrint)
 	ON_WM_CONTEXTMENU()
 	ON_WM_RBUTTONUP()
-	ON_COMMAND(ID_AUTO_AUTOFIT, &CPublishAide_1View::OnAutoAutofit)
 END_MESSAGE_MAP()
 
 // CPublishAide_1View construction/destruction
 
 CPublishAide_1View::CPublishAide_1View()
-	: m_nCount(0)
 {
 	// TODO: add construction code here
 
@@ -130,10 +128,6 @@ CPublishAide_1Doc* CPublishAide_1View::GetDocument() const // non-debug version 
 
 // CPublishAide_1View message handlers
 
-void CPublishAide_1View::OnAutoAutofit()
-{
-	// TODO: Add your command handler code here
-}
 
 
 void CPublishAide_1View::OnDocumentComplete(LPCTSTR lpszURL)
@@ -210,7 +204,7 @@ void CPublishAide_1View::OnDocumentComplete(LPCTSTR lpszURL)
 L1:	CHtmlView::OnDocumentComplete(lpszURL);
 }
 
-int CPublishAide_1View::GotoAnchor(BSTR* sNearlyID,BSTR* sLinkURL)const
+int CPublishAide_1View::GotoAnchor(BSTR* sNearlyID,BSTR* sLinkURL)
 {
 	LPDISPATCH lpDisp=GetHtmlDocument();
 	CComPtr<IHTMLDocument3> cpDoc3;

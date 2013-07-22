@@ -1,7 +1,8 @@
 
 // PublishAide_1View.h : interface of the CPublishAide_1View class
 //
-
+#include "PublishAide_1Doc.h"
+#include "PublishAide_1.h"
 #pragma once
 
 
