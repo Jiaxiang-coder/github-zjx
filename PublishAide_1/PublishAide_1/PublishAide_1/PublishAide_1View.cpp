@@ -6,9 +6,8 @@
 // SHARED_HANDLERS can be defined in an ATL project implementing preview, thumbnail
 // and search filter handlers and allows sharing of document code with that project.
 #ifndef SHARED_HANDLERS
-#include "PublishAide_1.h"
+#include "PublishAide_1View.h"
 #endif
-
 #include <afxdisp.h>
 #include <mshtml.h>
 #include <afxinet.h>
@@ -23,13 +22,26 @@ CComModule _Module;
 #include "PublishAide_1Doc.h"
 #include "PublishAide_1View.h"
 
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
 using namespace std;
 
-// CPublishAide_1View
+BOOL CALLBACK EnumChildProc(HWND hwnd,LPARAM lParam)
+{
+	TCHAR	buf[100];
+
+	::GetClassName( hwnd, (LPTSTR)&buf, 100 );
+	if ( _tcscmp( buf, _T("Internet Explorer_Server") ) == 0 )
+	{
+		*(HWND*)lParam = hwnd;
+		return FALSE;
+	}
+	else
+		return TRUE;
+};
 
 IMPLEMENT_DYNCREATE(CPublishAide_1View, CHtmlView)
 
@@ -38,11 +50,13 @@ BEGIN_MESSAGE_MAP(CPublishAide_1View, CHtmlView)
 	ON_COMMAND(ID_FILE_PRINT, &CHtmlView::OnFilePrint)
 	ON_WM_CONTEXTMENU()
 	ON_WM_RBUTTONUP()
+	ON_COMMAND(ID_AUTO_AUTOFIT, &CPublishAide_1View::OnAutoAutofit)
 END_MESSAGE_MAP()
 
 // CPublishAide_1View construction/destruction
 
 CPublishAide_1View::CPublishAide_1View()
+	: m_nCount(0)
 {
 	// TODO: add construction code here
 
@@ -112,9 +126,14 @@ CPublishAide_1Doc* CPublishAide_1View::GetDocument() const // non-debug version 
 	return (CPublishAide_1Doc*)m_pDocument;
 }
 #endif //_DEBUG
-
+  
 
 // CPublishAide_1View message handlers
+
+void CPublishAide_1View::OnAutoAutofit()
+{
+	// TODO: Add your command handler code here
+}
 
 
 void CPublishAide_1View::OnDocumentComplete(LPCTSTR lpszURL)
@@ -133,7 +152,7 @@ void CPublishAide_1View::OnDocumentComplete(LPCTSTR lpszURL)
 		hres= cpDoc2->get_location(&cpLoc);
 		if(SUCCEEDED(hres)&&cpLoc)
 		{
-			hres=cpLoc->get_href(&b1.m_str);
+			hres=cpLoc->get_href(&b1.m_str);		//obtain current href
 			if(SUCCEEDED(hres)&&b1.m_str)
 			{
 			/*	b1.Append(L"\r\n");
@@ -144,24 +163,28 @@ void CPublishAide_1View::OnDocumentComplete(LPCTSTR lpszURL)
 				f1.Close();*/
 
 				b2.Attach(wcsstr(b1.m_str,L"https://login.taobao.com/member/login.jhtml"));
-				if(b2.m_str)
+				if(b2.m_str)					//current href has substring https://login.taobao.com/member/login.jhtml invoke LoginFunction()
 				{
-					LoginFunction();
-					b2.Detach();
+					LoginFunction();			//自动登录
+					b2.Detach();				//释放字符串
 					goto L1;
 				}
 				b2.Attach(wcsstr(b1.m_str,L"http://i.taobao.com/my_taobao.htm"));
 				if(b2.m_str)
 				{
-					Navigate2(L"http://mai.taobao.com/seller_admin.htm");
+					//Navigate2(L"http://mai.taobao.com/seller_admin.htm");	
+					s3.Attach(L"http://mai.taobao.com/seller_admin.htm");  //href 内的子字符串
+					s4.Attach(L"site-nav-bd");		//最近的id
+					GotoAnchor(&s4.m_str,&s3.m_str);
+					s3.Detach();
+					s4.Detach();
 					b2.Detach();
 					goto L1;
 				}
 				b2.Attach(wcsstr(b1.m_str,L"http://mai.taobao.com/seller_admin.htm"));
 				if(b2.m_str)
 				{
-					//Navigate2(L"http://upload.taobao.com/auction/sell.jhtml");
-					s3.Attach(L"http://upload.taobao.com/auction/sell.jhtml");
+					s3.Attach(L"http://upload.taobao.com/auction/sell.jhtml");	//发布商品
 					s4.Attach(L"J_SelectMenu");
 					GotoAnchor(&s4.m_str,&s3.m_str);
 					s3.Detach();
@@ -172,7 +195,7 @@ void CPublishAide_1View::OnDocumentComplete(LPCTSTR lpszURL)
 				if(b2.m_str)
 				{
 					
-						AuctionCategorySelect();
+						AuctionCategorySelect();	//自动选择
 						goto L1;
 				}
 				//b2.Attach(wcsstr(b1.m_str,L"http://upload.taobao.com/auction/publish/publish.htm"));
@@ -183,11 +206,11 @@ void CPublishAide_1View::OnDocumentComplete(LPCTSTR lpszURL)
 
 		}
 	}
+	
 L1:	CHtmlView::OnDocumentComplete(lpszURL);
 }
 
-
-int CPublishAide_1View::GotoAnchor(BSTR* sNearlyID, BSTR* sLinkURL)
+int CPublishAide_1View::GotoAnchor(BSTR* sNearlyID,BSTR* sLinkURL)const
 {
 	LPDISPATCH lpDisp=GetHtmlDocument();
 	CComPtr<IHTMLDocument3> cpDoc3;
@@ -201,32 +224,32 @@ int CPublishAide_1View::GotoAnchor(BSTR* sNearlyID, BSTR* sLinkURL)
 
 	if(SUCCEEDED(hres)&&cpDoc3)
 	{
-		hres = cpDoc3->getElementById(*sNearlyID,&cpElement);
+		hres = cpDoc3->getElementById(*sNearlyID,&cpElement);	//用ID取得离目标 href 最近的元素
 			if(SUCCEEDED(hres)&&cpElement)
 			{
-				cpElement->get_all((IDispatch**)&cpElemCol);
+				cpElement->get_all((IDispatch**)&cpElemCol);	//Retrieves the collection of all the objects in the HTML that are within the scope of this object. 
 				long len;
-				cpElemCol->get_length(&len);
-				for(long i=0;i<=len;++i)
+				cpElemCol->get_length(&len);	// length of elememts collection
+				for(long i=0;i<=len;++i)				//ergodic
 				{
 					hres=cpElemCol->item(CComVariant(i),CComVariant(i),(IDispatch**)&cpElement);
 					if(SUCCEEDED(hres)&&cpElement)
 					{
-						hres=cpElement->QueryInterface(IID_IHTMLAnchorElement,(void**)&cpAncEle);
+						hres=cpElement->QueryInterface(IID_IHTMLAnchorElement,(void**)&cpAncEle);	//if this element is a IHTMLAnchorElement
 						if(SUCCEEDED(hres)&&cpAncEle)
 						{
-							hres=cpAncEle->get_href(&bs1.m_str);
+							hres=cpAncEle->get_href(&bs1.m_str);	//get href of the element
 							if(!bs1.m_str)continue;
 							if(SUCCEEDED(hres))
 							{
-								bs2.Attach(wcsstr(bs1.m_str,*sLinkURL));
+								bs2.Attach(wcsstr(bs1.m_str,*sLinkURL));	//if target href if a substring of href of current element 
 								if(bs2.m_str==0)
 									continue;
 								bs1.Detach();
-								bs1.Attach(L"_self");
+								bs1.Attach(L"_self");			// 加入target值，在当前窗口打开网页
 								cpAncEle->put_target(bs1.m_str);
 								bs1.Detach();
-								hres=cpAncEle->QueryInterface(IID_IHTMLElement,(void**)&cpElement);
+								hres=cpAncEle->QueryInterface(IID_IHTMLElement,(void**)&cpElement);		//obtain pointer of IHTMLElement interface 
 								if(SUCCEEDED(hres)&&cpElement)
 								cpElement->click();
 								/*strref=bs1.m_str;
@@ -241,8 +264,7 @@ int CPublishAide_1View::GotoAnchor(BSTR* sNearlyID, BSTR* sLinkURL)
 	return 0;
 }
 
-
-int CPublishAide_1View::LoginFunction(void)
+BOOL CPublishAide_1View::LoginFunction()
 {
 	LPDISPATCH phDoc= GetHtmlDocument();
 	CComPtr<IHTMLDocument3> copDoc3;
@@ -254,7 +276,7 @@ int CPublishAide_1View::LoginFunction(void)
 	HRESULT hres;
 	CComBSTR obnm,obval;
 	VARIANT_BOOL p1;
-	obnm.Attach(L"J_SafeLoginCheck");
+	obnm.Attach(L"J_SafeLoginCheck");		
 	hres=copDoc3->getElementById(obnm,&htmptr2);
 	if(!SUCCEEDED(hres)|!htmptr2)return 0;
 	hres=htmptr2->QueryInterface(IID_IHTMLInputElement,(void**)&checkbox);
@@ -287,8 +309,8 @@ int CPublishAide_1View::LoginFunction(void)
 	return 0;
 }
 
-
-int CPublishAide_1View::AuctionCategorySelect(void)
+//int CPublishAide_1View::AuctionCategorySelect(BSTR* bsRoot,BSTR* bsCategory, BSTR* bsBrand, BSTR* bsModelNumber) const
+int CPublishAide_1View::AuctionCategorySelect()		//发布商品时的自动选择			//未完成
 {
 	LPDISPATCH lpDisp=GetHtmlDocument();
 	CComPtr<IHTMLElementCollection> cpElemCol;
@@ -307,27 +329,27 @@ int CPublishAide_1View::AuctionCategorySelect(void)
 	CComPtr<IHTMLFiltersCollection> cpFC;
 	CComPtr<IElementSelector> cpElemSel;
 	IHTMLDOMAttribute* pItem;
-//	VARIANT vACIndex;
-//	BSTR bstrName;
-//	LONG lNodeType;
+	VARIANT vACIndex;
+	BSTR bstrName;
+	LONG lNodeType;
 	VARIANT vNodeValue;
 	VARIANT vValue;
 	VARIANT_BOOL vbSpecified;
 	HRESULT hres;
 	LONG lACLength,lACValue;
-	CComBSTR bs1(L"cc-tree-item346");
-	CComBSTR bs2(L"cc-cbox-item2107");
-	CComBSTR bs3(L"cc-cbox-item1833");
+	CComBSTR bs1(L"cc-tree-item346");		//手机类的 li 元素 id
+	CComBSTR bs2(L"cc-cbox-item2107");		// 联想手机 li 元素 id
+	CComBSTR bs3(L"cc-cbox-item1833");		// w100 li 元素 id
 	CComBSTR bsTemp;
 	CComBSTR bs4;
 
 	vNodeValue.vt=VT_BSTR;
-	CComBSTR bstr0("J_CatePubBtn");
+	CComBSTR bstr0("J_CatePubBtn");			//按钮
 	//CComBSTR bstr1("J_CatePubBtn");
 	CComVariant vr1;
 	CComVariant vr2;
 	vr1.vt=VT_BSTR;
-	vr1.bstrVal=L"cc-tree-item346";
+	vr1.bstrVal=L"cc-tree-item346";		
 	vr2.vt=VT_DISPATCH;
 	vr2.pdispVal=pACDisp;
 	hres= lpDisp->QueryInterface(IID_IHTMLDocument3,(void**)&cpDoc3);
@@ -361,3 +383,4 @@ int CPublishAide_1View::AuctionCategorySelect(void)
 	bstr0.Detach();
 	return 0;
 }
+
